@@ -57,25 +57,40 @@ def minimize_marginals(graph, initial_estimate, pose_options):
     marginals = gtsam.Marginals(graph, result)
     # The sum of the marginals for each landmark can be computed using marginals.marginalCovariance(L(x)).sum()
     sum_of_marginals = marginals.marginalCovariance(L(1)).sum() + marginals.marginalCovariance(L(2)).sum()
-    print(sum_of_marginals)
     return best_pose, best_landmark, sum_of_marginals
 
 def minimize_errors(graph, initial_estimate, pose_options):
     #TODO: try different pose and landmark options here, and keep the one with the lowest resulting error.
-    best_pose = "b"      # chosen pose option
-    best_landmark = 2    # chosen landmark (1 or 2)
+    best_pose = "a"      # chosen pose option
+    best_landmark = 1    # chosen landmark (1 or 2)
+    
+    # Prevent "x5 already exists" error
+    local_graph = graph.clone()
+    local_estimate = gtsam.Values(initial_estimate)
+    
+    if local_estimate.exists(X(5)):
+        local_estimate.erase(X(5))
+    
     pose_5 = pose_options[best_pose]
-    graph, initial_estimate = add_pose(graph, initial_estimate, pose_5)
-    result = optimize(graph, initial_estimate)
-    graph = add_landmark_measurement(graph, result, pose_5, best_landmark)
-    result = optimize(graph, initial_estimate)
+    local_graph, local_estimate = add_pose(local_graph, local_estimate, pose_5)
+    result = optimize(local_graph, local_estimate)
+    local_graph = add_landmark_measurement(local_graph, result, pose_5, best_landmark)
+    result = optimize(local_graph, local_estimate)
 
     # TODO: create a list of errors (each index corresponds to a pose) and add the error of each pose to the list
-    marginals = gtsam.Marginals(graph, result)
     list_of_errors = []
-    for i in [1, 2, 3]:
-        list_of_errors.append(marginals.marginalCovariance(X(i)).sum())
+    pose1 = result.atPose2(X(1))
+    pose2 = result.atPose2(X(2))
+    pose3 = result.atPose2(X(3))
+
+    error_pose1 = np.sqrt((pose1.x() - 0)**2 + (pose1.y() - 0)**2 + (pose1.theta() - 0)**2)
+    error_pose2 = np.sqrt((pose2.x() - 2)**2 + (pose2.y() - 0)**2 + (pose2.theta() - 0)**2)
+    error_pose3 = np.sqrt((pose3.x() - 4)**2 + (pose3.y() - 0)**2 + (pose3.theta() - 0)**2)
+
+    list_of_errors.append(error_pose1)
+    list_of_errors.append(error_pose2)
+    list_of_errors.append(error_pose3)
+        
     # TODO: compute the sum of the errors and return it along with the best pose and landmark
     sum_of_errors = sum(list_of_errors)
-    print(sum_of_errors)
-    return best_pose, best_landmark, sum_of_errors 
+    return best_pose, best_landmark, sum_of_errors
